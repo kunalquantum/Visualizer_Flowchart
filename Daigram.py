@@ -204,7 +204,6 @@ def generate_dot_code(nodes, edges, clusters, theme_name, layout_engine="dot", s
     splines_val = 'curved' if engine in ['neato', 'fdp'] else splines
     
     # SVG Optimization: No forced size, no DPI (vectors don't have pixels)
-    # We want the raw, full diagram logic
     dot = [
         'digraph G {',
         f'  layout={engine};',
@@ -405,15 +404,10 @@ with col2:
                         svg_code = re.sub(r'height=".*?"', '', svg_code, count=1)
                         
                         # Wrap in scroll container just in case, but force width
-                        st.markdown(f"""
-                        <div style="width: 100%; overflow-x: auto; border: 1px solid #eee; border-radius: 8px; padding: 10px;">
-                            {svg_code}
-                        </div>
-                        """, unsafe_allow_html=True)
+                        # FIXED: HTML indentation removed to prevent markdown code block rendering
+                        st.markdown(f"""<div style="width: 100%; overflow-x: auto; border: 1px solid #eee; border-radius: 8px; padding: 10px;">{svg_code}</div>""", unsafe_allow_html=True)
                         
                         # 2. Fetch High-Res PNG for Download Only
-                        # We separate this so the screen view stays fast and responsive
-                        # We use requests here to ensure we get a clean file
                         try:
                             # Add DPI for download version
                             dot_code_dl = dot_code.replace('graph {', 'graph { dpi=300; ')
