@@ -187,11 +187,10 @@ def parse_diagram_data(text):
 
 def generate_dot_code(nodes, edges, clusters, theme_name, layout_engine="dot", splines="ortho"):
     """
-    Generate Graphviz DOT code with multiple layout engines.
+    Generate Graphviz DOT code.
     """
     theme = THEMES[theme_name]
     
-    # Map simple layout names to Graphviz engines
     engine_map = {
         "Hierarchy (Waterfall)": "dot",
         "Organic (Force)": "neato",
@@ -201,19 +200,18 @@ def generate_dot_code(nodes, edges, clusters, theme_name, layout_engine="dot", s
     }
     engine = engine_map.get(layout_engine, "dot")
     
-    # Rankdir only applies to 'dot' engine
     rankdir_str = 'rankdir=TB;' if engine == 'dot' else ''
-    # Splines usually look better as 'curved' for organic layouts
     splines_val = 'curved' if engine in ['neato', 'fdp'] else splines
     
+    # SVG Optimization: No forced size, no DPI (vectors don't have pixels)
+    # We want the raw, full diagram logic
     dot = [
         'digraph G {',
-        '  graph [size="12,12", ratio="compress"];', # FIXED: Limit physical size to prevent overflow
         f'  layout={engine};',
         f'  {rankdir_str}',
-        f'  bgcolor="{theme["bgcolor"]}";',
+        f'  bgcolor="transparent";',
         f'  splines={splines_val};',
-        '  overlap=false;',  # Important for organic layouts
+        '  overlap=false;',  
         '  nodesep=0.6;',
         '  ranksep=0.8;',
         f'  node [fontname="{theme["font"]}", fontsize=10, penwidth=1.5];',
@@ -224,7 +222,6 @@ def generate_dot_code(nodes, edges, clusters, theme_name, layout_engine="dot", s
     
     rendered_nodes = set()
     
-    # Render Clusters (Only fully supported in 'dot' and 'fdp')
     use_clusters = engine in ['dot', 'fdp']
     
     if use_clusters:
@@ -242,7 +239,6 @@ def generate_dot_code(nodes, edges, clusters, theme_name, layout_engine="dot", s
                     rendered_nodes.add(nid)
             dot.append('  }')
             
-    # Render Nodes (if not in cluster or if clusters disabled for this layout)
     for nid, label in nodes.items():
         if not use_clusters or nid not in rendered_nodes:
             style = get_graphviz_style(label, theme_name)
@@ -255,7 +251,6 @@ def generate_dot_code(nodes, edges, clusters, theme_name, layout_engine="dot", s
     return "\n".join(dot)
 
 def generate_drawio_xml(nodes, edges, clusters):
-    # Same logic as before, just ensuring robustness
     xml = [
         '<mxfile host="app.diagrams.net" modified="2024-01-01T00:00:00.000Z" agent="CloudDMate" version="21.0.0" type="device">',
         '  <diagram id="C5RBs43oDa-KdzZeNtuy" name="Architecture">',
@@ -385,66 +380,64 @@ with col2:
     if user_text:
         try:
             nodes, edges, clusters = parse_diagram_data(user_text)
+            
+            # Generate DOT without constraints for SVG
             dot_code = generate_dot_code(nodes, edges, clusters, selected_theme, layout_engine, splines)
             drawio_xml = generate_drawio_xml(nodes, edges, clusters)
             
             tab1, tab2 = st.tabs(["📊 Smart View", "✏️ Visual Editor"])
             with tab1:
-                # Engine Mapping logic for local vs cloud
-                engine_map = {
-                    "Hierarchy (Waterfall)": "dot",
-                    "Organic (Force)": "neato",
-                    "Circular (Ring)": "circo",
-                    "Radial (Star)": "twopi",
-                    "Freeform": "fdp"
-                }
-                eng = engine_map.get(layout_engine, "dot")
-                
                 png_data = None
 
+                # 1. Fetch Responsive SVG for Screen
+                # This guarantees clarity and no overflow
                 try:
-                    # 1. Try Local Rendering (SVG for interactive + PNG for data)
-                    # We generate PNG first to check if local binary works
-                    graph = graphviz.Source(dot_code)
-                    png_data = graph.pipe(format='png')
+                    resp_svg = requests.post(
+                        "https://quickchart.io/graphviz", 
+                        json={"graph": dot_code, "format": "svg"}, 
+                        timeout=15
+                    )
                     
-                    # If pipe worked, assume st.graphviz_chart will also work for display
-                    st.graphviz_chart(dot_code, use_container_width=True, engine=eng)
-                    
-                except Exception as local_ex:
-                    st.warning("Complex layout requires external rendering. Fetching...")
-                    try:
-                        # 2. Cloud Fallback
-                        resp = requests.post(
-                            "https://quickchart.io/graphviz", 
-                            json={"graph": dot_code, "format": "png"}, 
-                            timeout=15
-                        )
+                    if resp_svg.status_code == 200:
+                        svg_code = resp_svg.text
+                        # Fix: Make SVG Responsive by removing fixed width/height
+                        svg_code = re.sub(r'width=".*?"', 'width="100%"', svg_code, count=1)
+                        svg_code = re.sub(r'height=".*?"', '', svg_code, count=1)
                         
-                        if resp.status_code == 200:
-                            # Success: Use this data for both display and download
-                            png_data = resp.content
-                            st.image(png_data, caption="Visualized via Cloud Renderer", use_container_width=True)
+                        # Wrap in scroll container just in case, but force width
+                        st.markdown(f"""
+                        <div style="width: 100%; overflow-x: auto; border: 1px solid #eee; border-radius: 8px; padding: 10px;">
+                            {svg_code}
+                        </div>
+                        """, unsafe_allow_html=True)
                         
-                        elif resp.headers.get('Content-Type', '').startswith('image/'):
-                            # API returned an error as an image
-                            st.image(resp.content, caption="Renderer Message", use_container_width=True)
+                        # 2. Fetch High-Res PNG for Download Only
+                        # We separate this so the screen view stays fast and responsive
+                        # We use requests here to ensure we get a clean file
+                        try:
+                            # Add DPI for download version
+                            dot_code_dl = dot_code.replace('graph {', 'graph { dpi=300; ')
+                            resp_png = requests.post(
+                                "https://quickchart.io/graphviz", 
+                                json={"graph": dot_code_dl, "format": "png"}, 
+                                timeout=15
+                            )
+                            if resp_png.status_code == 200:
+                                png_data = resp_png.content
+                        except: pass
                         
-                        else:
-                            # Actual text error - truncate to avoid massive dumps
-                            err_msg = resp.text if len(resp.text) < 200 else "Server returned binary/invalid data."
-                            st.error(f"Cloud rendering failed: {resp.status_code} - {err_msg}")
-                            
-                    except Exception as cloud_ex:
-                        st.error(f"Connection error: {str(cloud_ex)}")
+                    else:
+                        st.error(f"Visualization service busy. Status: {resp_svg.status_code}")
+                except Exception as e:
+                    st.error(f"Visualizer Connection Issue: {e}")
 
                 st.divider()
                 
                 c1, c2, c3 = st.columns(3)
                 with c1: st.download_button("Download .drawio", drawio_xml, "arch.drawio", "application/xml")
                 with c2: 
-                    if png_data: st.download_button("Download PNG", png_data, "arch.png", "image/png")
-                    else: st.info("PNG Unavailable")
+                    if png_data: st.download_button("Download PNG (High Res)", png_data, "arch.png", "image/png")
+                    else: st.info("PNG Generating...")
                 with c3:
                     with st.expander("View DOT"): st.code(dot_code, language="dot")
 
