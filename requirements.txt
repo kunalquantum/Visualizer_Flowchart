@@ -9,7 +9,7 @@
 diagrams==0.24.4
 
 # Graph visualization engine (Python wrapper)
-graphviz==0.20.3
+graphviz
 
 # GraphViz Python bindings (C extension)
 # Note: Installation requires MSVC compiler and GraphViz dev files
