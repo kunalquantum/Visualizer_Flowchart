@@ -1,0 +1,105 @@
+# Sample Diagram Format for Dark VizMate
+# Copy and modify this template to create your diagrams
+
+# ============================================
+# BASIC FLOW EXAMPLE
+# ============================================
+## User Authentication Flow
+User → Login Page → Enter Credentials
+↓
+Validate Credentials → Check Database
+↓
+Success → Generate Token → Redirect to Dashboard
+↓
+Failure → Show Error Message → Return to Login
+
+# ============================================
+# API FLOW EXAMPLE
+# ============================================
+## API Request Flow
+Client → API Gateway [Request]
+↓
+API Gateway → Authentication Service [Validate Token]
+↓
+Authentication Service → Database [Check User]
+↓
+Database → Authentication Service [User Data]
+↓
+Authentication Service → API Gateway [Authorized]
+↓
+API Gateway → Backend Service [Process Request]
+↓
+Backend Service → Database [Query Data]
+↓
+Database → Backend Service [Return Data]
+↓
+Backend Service → API Gateway [Response]
+↓
+API Gateway → Client [JSON Response]
+
+# ============================================
+# SYSTEM ARCHITECTURE EXAMPLE
+# ============================================
+## Frontend Layer
+Web Browser → React App → API Client
+↓
+## Backend Layer
+API Client → REST API → Business Logic
+↓
+Business Logic → Database Service → PostgreSQL
+↓
+Business Logic → Cache Service → Redis
+↓
+Business Logic → Message Queue → RabbitMQ
+↓
+## External Services
+Message Queue → Email Service → SendGrid
+Message Queue → Notification Service → Firebase
+
+# ============================================
+# E-COMMERCE FLOW EXAMPLE
+# ============================================
+## Shopping Cart Flow
+User → Browse Products → Add to Cart
+↓
+View Cart → Update Quantity → Proceed to Checkout
+↓
+Checkout → Enter Shipping Info → Payment Gateway [Process Payment]
+↓
+Payment Gateway → Payment Processor [Authorize]
+↓
+Payment Processor → Payment Gateway [Success]
+↓
+Payment Gateway → Order Service [Create Order]
+↓
+Order Service → Inventory Service [Reserve Items]
+↓
+Order Service → Email Service [Send Confirmation]
+↓
+Order Service → Shipping Service [Schedule Delivery]
+
+# ============================================
+# DATA PROCESSING PIPELINE
+# ============================================
+## Data Pipeline
+Data Source → Data Ingestion → Validation
+↓
+Validation → Transform → Enrichment
+↓
+Enrichment → Storage → Data Warehouse
+↓
+Data Warehouse → Analytics Engine → Reports
+↓
+Reports → Dashboard → Business Users
+
+# ============================================
+# NOTES:
+# ============================================
+# 1. Use # for cluster/section titles
+# 2. Use →, ->, or => for horizontal connections
+# 3. Use ↓, v, or | for vertical flow
+# 4. Add [labels] on arrows for edge descriptions
+# 5. Each line represents a flow step
+# 6. Empty lines are ignored
+# 7. Comments (starting with #) are ignored
+
